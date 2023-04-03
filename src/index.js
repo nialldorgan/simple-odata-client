@@ -9,15 +9,14 @@ export default class SimpleOdataClient {
    * Creates the instance
    * @param 
    * apiRoot = the root path
-   * subscriptionKey an object of the form {keyName: name, subscriptionKey: value}
-   * apiVersion an object of the form {apiVersionName: name, version: value}
-   * replaceParameterWith an object of the form {parameterToReplace: parameter, replacement: value}
+   * customKeyValuePairs (optional) an array of Objects of the form {keyName: name, keyValue: value}
+   * replaceParameterKeyWith (optional) an object of the form {parameterToReplace: parameter, replacement: value}
+   * token (optional) a string containing a barer token for OAuth, if present will be added to headers as Authorization: Bearer token
    */
-  constructor (apiRoot, subscriptionKey = null, apiVersion = null, replaceParameterWith = null) {
+  constructor (apiRoot, customKeyValuePairs = [], replaceParameterKeyWith = null, token = null) {
     this.apiRoot = apiRoot
-    this.subscriptionKey = subscriptionKey
-    this.apiVersion = apiVersion
-    this.replaceParameterWith = replaceParameterWith
+    this.customKeyValuePairs = customKeyValuePairs
+    this.replaceParameterKeyWith = replaceParameterKeyWith    
     this.filters = {}
     this.endpoint = ''
   }
@@ -26,8 +25,17 @@ export default class SimpleOdataClient {
   // Actions
   /// /////////////////////////////////////////////////////////////////////////////
 
-  get (responseType = 'json', additionalHeaders = []) {
+  /**
+   * executes a get request on the url
+   * @param
+   * responseType (optional) string containing the required response type default json
+   * additionalHeaders (optional) an object of key value pairs to add to headers
+   * tempKeyValuePairs (optional) and array of Objects of the form {keyName: name, keyValue: value} to add additional paramenters to the request
+   * this will only be added to this request unlike customKeyValuePairs paramenter in the constructor which is added to every request
+   */
+  get (responseType = 'json', additionalHeaders = null, tempKeyValuePairs = []) {
     this.responseType = responseType
+    this.tempKeyValuePairs = tempKeyValuePairs
     return this.makeApiCall('get', `${this.endpoint}${this.createQueryParamaters('get')}`)
   }
 
@@ -35,6 +43,12 @@ export default class SimpleOdataClient {
   // endpoint setters
   /// /////////////////////////////////////////////////////////////////////////////////
 
+  /**
+   * adds an additional endpoint on the apiRoot path
+   * @param
+   * endpoint String with the desired endpoint
+   */
+  
   Endpoint (endpoint) {
     this.endpoint = `/${endpoint}`
     return this
@@ -78,7 +92,7 @@ export default class SimpleOdataClient {
   /// //////////////////////////////////////////////////////////////////////////////////
   /**
    * Creates a filters query string
-   * @param Array of Strings Objects with Propertyname to filter, property value and operator defaults to eq
+   * @param Array of Strings or Objects with Propertyname to filter, property value and operator defaults to eq
    * {propertyName: 'myProperty', propertyValue: 'myPropertyValue', operator: 'eq'}
    * possible operators eq, ne, gt, ge, lt, le, in
    */
@@ -131,8 +145,7 @@ export default class SimpleOdataClient {
   }
 
   createQueryParamaters (method) {
-    var query = {}
-    var additionalParameters = ''
+    var query = {}    
     if (this.filters) {
       query['filter'] = this.filters
     }
@@ -148,15 +161,9 @@ export default class SimpleOdataClient {
     if (this.count) {
       query['top'] = this.count
     }
-    if (this.subscriptionKey) {
-      additionalParameters += `&${this.subscriptionKey.keyName}=${this.subscriptionKey.subscriptionKey}`
-    }
-    if (this.apiVersion) {
-      additionalParameters += `&${this.apiVersion.apiVersionName}=${this.apiVersion.version}`
-    }
-    var builtQuery = buildQuery(query) + additionalParameters
-    if (this.replaceParameterWith) {
-      this.replaceParameterWith.forEach(parameter => {
+    var builtQuery = buildQuery(query) + this.createCustomKeyValuePairs(this.customKeyValuePairs) + this.createCustomKeyValuePairs(this.tempKeyValuePairs)
+    if (this.replaceParameterKeyWith) {
+      this.replaceParameterKeyWith.forEach(parameter => {
         builtQuery = _.replace(builtQuery, `${parameter.parameterToReplace}`, `${parameter.replacement}`)
       })
     }
@@ -165,11 +172,22 @@ export default class SimpleOdataClient {
 
   createHeaders (additionalHeaders) {
     this.headers = {}
+    if (this.token) { this.headers.Authorization = `Bearer ${this.token}` }
     if (additionalHeaders) {
       Object.entries(additionalHeaders).forEach(([key, value]) => {
         this.headers[key] = value
       })
     }
     return this.headers
+  }
+
+  createCustomKeyValuePairs (keyValuePairs) {
+    var additionalParameters = ''
+    if (keyValuePairs.length) {
+      keyValuePairs.forEach(pair => {
+        additionalParameters += `&${pair.keyName}=${pair.keyValue}`
+      })
+    }
+    return additionalParameters
   }
 }
