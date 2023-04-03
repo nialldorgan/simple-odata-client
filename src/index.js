@@ -16,7 +16,8 @@ export default class SimpleOdataClient {
   constructor (apiRoot, customKeyValuePairs = [], replaceParameterKeyWith = null, token = null) {
     this.apiRoot = apiRoot
     this.customKeyValuePairs = customKeyValuePairs
-    this.replaceParameterKeyWith = replaceParameterKeyWith    
+    this.replaceParameterKeyWith = replaceParameterKeyWith
+    this.token = token   
     this.filters = {}
     this.endpoint = ''
   }
